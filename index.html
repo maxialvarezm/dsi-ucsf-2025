@@ -208,9 +208,10 @@
         }
 
         .audio-toggle {
-            position: fixed;
-            bottom: calc(clamp(24px, 5vh, 56px) + 106px);
-            right: clamp(24px, 5vw, 56px);
+            position: absolute;
+            top: 50%;
+            left: clamp(20px, 4vw, 56px);
+            transform: translateY(-50%);
             display: inline-flex;
             align-items: center;
             gap: 0.55rem;
@@ -225,7 +226,7 @@
             text-transform: uppercase;
             cursor: pointer;
             transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, color 0.3s ease;
-            z-index: 112;
+            z-index: 5;
         }
 
         .audio-toggle:hover,
@@ -377,7 +378,7 @@
             --x: 0px;
             --y: 0px;
             background-color: #2a1929;
-            background-image: linear-gradient(rgba(42, 25, 41, 0.92), rgba(20, 12, 26, 0.92)), url('https://raw.githubusercontent.com/maxialvarezm/dsi-ucsf-2025/refs/heads/main/ventanas.jpg');
+            background-image: linear-gradient(rgba(42, 25, 41, 0.92), rgba(20, 12, 26, 0.92)), url('https://raw.githubusercontent.com/maxialvarezm/dsi-ucsf-2025/refs/heads/main/resized/ventanas.jpg');
             background-size: cover;
             background-position: center;
         }
@@ -1128,9 +1129,26 @@
 
 <body class="zoomed-out">
 
-    <audio id="background-audio" src="sonido.mp3" preload="auto" aria-hidden="true"></audio>
+    <audio id="background-audio" src="https://raw.githubusercontent.com/maxialvarezm/dsi-ucsf-2025/refs/heads/main/sonido.mp3" preload="auto" aria-hidden="true"></audio>
 
     <header class="mural-header">
+        <button class="audio-toggle" id="audio-toggle" type="button" aria-pressed="false"
+            aria-label="Activar sonido de fondo" data-state="muted">
+            <span class="icon icon-on" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                    <path d="M4 9v6h3l4 4V5L7 9H4z"></path>
+                    <path d="M16.5 8.5c0.9 0.9 1.5 2.1 1.5 3.5s-0.6 2.6-1.5 3.5"></path>
+                    <path d="M19.5 6c1.5 1.5 2.5 3.6 2.5 6s-1 4.5-2.5 6"></path>
+                </svg>
+            </span>
+            <span class="icon icon-off" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                    <path d="M4 9v6h3l4 4V5L7 9H4z"></path>
+                    <path d="M20 4 4 20"></path>
+                </svg>
+            </span>
+            <span class="status-text" aria-hidden="true">Sonido</span>
+        </button>
         <h1>Resonancias de la Cátedra</h1>
     </header>
 
@@ -1151,24 +1169,6 @@
     <div class="scroll-hint authors" aria-label="Autores">
         <span class="hint-text">Álvarez, Furini, López. DSI 2025. UCSF</span>
     </div>
-
-    <button class="audio-toggle" id="audio-toggle" type="button" aria-pressed="false"
-        aria-label="Activar sonido de fondo" data-state="muted">
-        <span class="icon icon-on" aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-                <path d="M4 9v6h3l4 4V5L7 9H4z"></path>
-                <path d="M16.5 8.5c0.9 0.9 1.5 2.1 1.5 3.5s-0.6 2.6-1.5 3.5"></path>
-                <path d="M19.5 6c1.5 1.5 2.5 3.6 2.5 6s-1 4.5-2.5 6"></path>
-            </svg>
-        </span>
-        <span class="icon icon-off" aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-                <path d="M4 9v6h3l4 4V5L7 9H4z"></path>
-                <path d="M20 4 4 20"></path>
-            </svg>
-        </span>
-        <span class="status-text" aria-hidden="true">Sonido</span>
-    </button>
 
     <div class="info-modal" id="info-modal">
         <div class="modal-content">
