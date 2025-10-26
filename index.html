@@ -1,0 +1,1816 @@
+<!DOCTYPE html>
+<html lang="es">
+
+            pointer-events: auto;
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mural Interactivo: Análisis VJA</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;900&display=swap" rel="stylesheet">
+
+    <style>
+        /* --- Reset y Estilos Base --- */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html,
+        body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            background-color: #111;
+            color: #f0f0f0;
+        }
+
+        /* --- Variables CSS --- */
+        :root {
+            --color-ver: #3a86ff;
+            --color-juzgar: #ffbe0b;
+            --color-actuar: #3a5a40;
+            --color-cierre: #fb5607;
+            --color-intro: #8338ec;
+
+            --slide-width: 100vw;
+            --slide-height: 100vh;
+            --slide-gap: 15vmin;
+            --zoom-out-scale: 0.15;
+            /* Escala del plano general */
+            --transition-speed: 1s;
+            /* Velocidad de zoom/pan */
+            --content-delay: 0.3s;
+            /* Delay aparición contenido tras zoom */
+            --zoomed-out-size: clamp(220px, 28vmin, 360px);
+            --zoomed-out-gap: calc(var(--zoomed-out-size) * 0.45);
+        }
+
+        /* --- Cabecero --- */
+        .mural-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 75px;
+            background: rgba(17, 17, 17, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 5rem;
+            z-index: 100;
+            transition: border-color 0.5s ease;
+        }
+
+        .mural-header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-align: center;
+            color: #f0f0f0;
+            transition: color 0.5s ease;
+        }
+
+        .mural-header.header-ver h1 {
+            color: var(--color-ver);
+        }
+
+        .mural-header.header-juzgar h1 {
+            color: var(--color-juzgar);
+        }
+
+        .mural-header.header-actuar h1 {
+            color: var(--color-actuar);
+        }
+
+        .mural-header.header-cierre h1 {
+            color: var(--color-cierre);
+        }
+
+        .mural-header.header-intro h1 {
+            color: var(--color-intro);
+        }
+
+        /* --- Botón Zoom Out --- */
+        .zoom-out-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 101;
+            background: #2f2642;
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 42px;
+            height: 42px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s ease, transform 0.3s ease, opacity 0.3s ease, visibility 0.3s ease;
+            opacity: 0;
+            visibility: hidden;
+            transform: scale(0.8);
+            box-shadow: 0 0 18px rgba(122, 94, 201, 0.45);
+            animation: zoom-btn-glow 3.8s ease-in-out infinite;
+        }
+
+        .zoom-out-btn svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        .zoom-out-btn:hover {
+            background: #3f2f58;
+        }
+
+        body:not(.zoomed-out) .zoom-out-btn {
+            opacity: 1;
+            visibility: visible;
+            transform: scale(1);
+        }
+
+        .scroll-hint {
+            position: fixed;
+            bottom: clamp(24px, 5vh, 56px);
+            right: clamp(24px, 5vw, 56px);
+            transform: translateY(14px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            padding: 1rem 2.1rem;
+            background: rgba(17, 17, 17, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            border-radius: 999px;
+            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+            font-size: 1.05rem;
+            font-weight: 650;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: rgba(240, 240, 240, 0.95);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+            z-index: 110;
+            max-width: min(90vw, 460px);
+            text-align: center;
+            line-height: 1.45;
+            cursor: default;
+        }
+
+        .scroll-hint.authors {
+            left: clamp(24px, 5vw, 56px);
+            right: auto;
+            padding: 0.85rem 1.6rem;
+            font-size: 0.95rem;
+            letter-spacing: 0.04em;
+            text-transform: none;
+            gap: 0.6rem;
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: none;
+        }
+
+        .scroll-hint.authors svg {
+            display: none;
+        }
+
+        .scroll-hint .hint-text {
+            white-space: normal;
+            flex: 1 1 auto;
+        }
+
+        .scroll-hint svg {
+            width: 22px;
+            height: 22px;
+            stroke: rgba(255, 255, 255, 0.9);
+            stroke-width: 1.8;
+            fill: none;
+            animation: hint-bounce 1.6s infinite ease-in-out;
+        }
+
+        body.show-scroll-hint .scroll-hint {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        body.show-scroll-hint .scroll-hint.authors {
+            pointer-events: auto;
+        }
+
+        body .scroll-hint.is-hidden-by-hover {
+            opacity: 0;
+            transform: translateY(16px);
+        }
+
+        body:not(.zoomed-out) .scroll-hint,
+        body:not(.zoomed-out) .scroll-hint.authors {
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(16px);
+        }
+
+        @keyframes hint-bounce {
+
+            0%,
+            100% {
+                transform: translateY(-2px);
+                opacity: 0.6;
+            }
+
+            50% {
+                transform: translateY(4px);
+                opacity: 1;
+            }
+        }
+
+        @keyframes zoom-btn-glow {
+
+            0%,
+            100% {
+                box-shadow: 0 0 16px rgba(122, 94, 201, 0.4), 0 0 0 0 rgba(122, 94, 201, 0.32);
+                transform: scale(0.8);
+            }
+
+            50% {
+                box-shadow: 0 0 28px rgba(178, 140, 255, 0.7), 0 0 0 10px rgba(122, 94, 201, 0.12);
+                transform: scale(0.87);
+            }
+        }
+
+        @keyframes intro-glow {
+
+            0%,
+            100% {
+                transform: translate(-50%, -50%) translate(var(--layout-x), var(--layout-y)) scale(1);
+                box-shadow: 0 20px 45px rgba(0, 0, 0, 0.55);
+                border-color: rgba(255, 255, 255, 0.18);
+            }
+
+            35% {
+                transform: translate(-50%, -50%) translate(var(--layout-x), var(--layout-y)) scale(1.055);
+                box-shadow: 0 0 70px rgba(131, 56, 236, 0.85), 0 28px 55px rgba(0, 0, 0, 0.6);
+                border-color: rgba(208, 188, 255, 0.9);
+            }
+
+            58% {
+                transform: translate(-50%, -50%) translate(var(--layout-x), var(--layout-y)) scale(1.025);
+                box-shadow: 0 0 42px rgba(131, 56, 236, 0.6), 0 24px 50px rgba(0, 0, 0, 0.58);
+                border-color: rgba(208, 188, 255, 0.45);
+            }
+        }
+
+
+        /* --- Canvas 2D --- */
+        .mural-canvas-2d {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-origin: 50% 50%;
+            transition: transform var(--transition-speed) cubic-bezier(0.25, 0.8, 0.25, 1);
+            transform: scale(var(--scale, 1)) translate(var(--x, 0px), var(--y, 0px));
+        }
+
+        body {
+            --scale: var(--zoom-out-scale);
+            --x: 0px;
+            --y: 0px;
+            background-color: #2a1929;
+            background-image: linear-gradient(rgba(42, 25, 41, 0.92), rgba(20, 12, 26, 0.92)), url('https://raw.githubusercontent.com/maxialvarezm/dsi-ucsf-2025/refs/heads/main/ventanas.jpg');
+            background-size: cover;
+            background-position: center;
+        }
+
+        /* --- Diapositivas --- */
+        .mural-slide-2d {
+            width: var(--slide-width);
+            height: var(--slide-height);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            /* Posición establecida por CSS variables inline */
+            transform: translate(-50%, -50%) translate(var(--layout-x), var(--layout-y));
+            overflow: hidden;
+            cursor: pointer;
+            transition: border-radius calc(var(--transition-speed) * 0.7) cubic-bezier(0.645, 0.045, 0.355, 1);
+            background-color: #1a1a1a;
+        }
+
+        /* --- Plano General (Círculos con Preview) --- */
+        body.zoomed-out .mural-slide-2d {
+            border-radius: clamp(16px, 3.5vmin, 26px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Contenido Wrapper (Grid Layout) */
+        .slide-content-wrapper {
+            display: grid;
+            grid-template-columns: 3fr 2fr;
+            width: 100%;
+            height: 100%;
+            opacity: 1;
+            visibility: visible;
+            /* Siempre visible para preview */
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+
+        .mural-slide-2d.slide-intro .slide-content-wrapper {
+            grid-template-columns: 1fr;
+        }
+
+        /* --- Estado Activo (Zoom In) --- */
+        .mural-slide-2d.active {
+            border-radius: 0;
+            cursor: default;
+            z-index: 10;
+        }
+
+        /* --- Contenido Interno --- */
+        .slide-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 4rem;
+            background-color: #1a1a1a;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            flex-direction: column;
+        }
+
+        .slide-intro .slide-content {
+            border-right: none;
+        }
+
+        .slide-visual {
+            background-size: cover;
+            background-position: center;
+            height: 100%;
+            transform: scale(1.15);
+            opacity: 0.9;
+            filter: none;
+            transition: transform calc(var(--transition-speed) * 1.2) ease-out,
+                opacity calc(var(--transition-speed) * 1.2) ease-out,
+                filter 0.6s ease-out;
+        }
+
+        .mural-slide-2d.active .slide-visual {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        /* --- Fondos --- */
+        #visual-intro {
+            background-image: linear-gradient(rgba(40, 40, 50, 0.6), rgba(20, 20, 30, 0.8)), url('https://raw.githubusercontent.com/maxialvarezm/dsi-ucsf-2025/refs/heads/main/introduccion.jpg');
+        }
+
+        #visual-1 {
+            background-image: linear-gradient(rgba(20, 30, 60, 0.5), rgba(10, 15, 30, 0.7)), url('https://raw.githubusercontent.com/maxialvarezm/dsi-ucsf-2025/refs/heads/main/Individualismo.jpg');
+        }
+
+        #visual-2 {
+            background-image: linear-gradient(rgba(20, 30, 60, 0.5), rgba(10, 15, 30, 0.7)), url('https://raw.githubusercontent.com/maxialvarezm/dsi-ucsf-2025/refs/heads/main/sociedad.png');
+        }
+
+        #visual-3 {
+            background-image: linear-gradient(rgba(130, 100, 30, 0.5), rgba(60, 40, 10, 0.7)), url('https://raw.githubusercontent.com/maxialvarezm/dsi-ucsf-2025/refs/heads/main/jesus.png');
+        }
+
+        #visual-4 {
+            background-image: linear-gradient(rgba(130, 100, 30, 0.5), rgba(60, 40, 10, 0.7)), url('https://raw.githubusercontent.com/maxialvarezm/dsi-ucsf-2025/refs/heads/main/reino.png');
+        }
+
+        #visual-5 {
+            background-image: linear-gradient(rgba(130, 100, 30, 0.5), rgba(60, 40, 10, 0.7)), url('https://raw.githubusercontent.com/maxialvarezm/dsi-ucsf-2025/refs/heads/main/dignidad.jpg');
+        }
+
+        #visual-6 {
+            background-image: linear-gradient(rgba(30, 100, 60, 0.5), rgba(10, 40, 20, 0.7)), url('https://raw.githubusercontent.com/maxialvarezm/dsi-ucsf-2025/refs/heads/main/fratelli.jpeg');
+        }
+
+        #visual-7 {
+            background-image: linear-gradient(rgba(30, 100, 60, 0.5), rgba(10, 40, 20, 0.7)), url('https://raw.githubusercontent.com/maxialvarezm/dsi-ucsf-2025/refs/heads/main/amazonia.jpg');
+        }
+
+        #visual-9 {
+            background-image: linear-gradient(rgba(100, 60, 20, 0.5), rgba(70, 30, 10, 0.7)), url('https://raw.githubusercontent.com/maxialvarezm/dsi-ucsf-2025/refs/heads/main/cierre.jpeg');
+        }
+
+
+        /* --- Caja de Contenido (Texto) --- */
+        .content-box,
+        .title-container {
+            max-width: min(900px, 92vw, 70ch);
+            width: 100%;
+            margin: 0 auto;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateX(-50px);
+            transition: opacity 0.8s ease-out var(--content-delay),
+                transform 0.8s cubic-bezier(0.25, 1, 0.5, 1) var(--content-delay),
+                visibility 0s linear calc(var(--content-delay) + 0.8s);
+            overflow-wrap: anywhere;
+        }
+
+        .content-box {
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: clamp(1.35rem, 3vw, 2.8rem);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .title-container {
+            max-width: min(820px, 92vw, 60ch);
+            padding: 0 clamp(1.5rem, 3vw, 3rem);
+            text-align: center;
+        }
+
+        body.zoomed-out {
+            --content-delay: 0s;
+            /* Evita que el texto permanezca visible durante el regreso al plano general */
+            --slide-width: var(--zoomed-out-size);
+            --slide-height: var(--zoomed-out-size);
+            --slide-gap: var(--zoomed-out-gap);
+            --zoom-out-scale: 0.5;
+            /* Mantiene sensación de alejamiento sin distorsionar los círculos */
+        }
+
+        body.zoomed-out .mural-slide-2d {
+            position: absolute;
+            background: rgba(17, 17, 17, 0.85);
+            border: 2px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.55);
+            overflow: visible;
+        }
+
+        body.zoomed-out .slide-content-wrapper {
+            display: block;
+            height: 100%;
+            position: relative;
+        }
+
+        body.zoomed-out .slide-content {
+            display: none;
+        }
+
+        body.zoomed-out .slide-visual {
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            filter: saturate(0.25) brightness(1.1);
+            mix-blend-mode: screen;
+        }
+
+        body.zoomed-out .mural-slide-2d.visited {
+            border-color: rgba(255, 255, 255, 0.28);
+            box-shadow: 0 22px 48px rgba(0, 0, 0, 0.6), 0 0 26px rgba(131, 56, 236, 0.2);
+        }
+
+        body.zoomed-out .mural-slide-2d.visited .slide-visual {
+            filter: saturate(1) brightness(1);
+            mix-blend-mode: normal;
+            opacity: 1;
+        }
+
+        body.zoomed-out .mural-slide-2d::after {
+            content: attr(data-preview-label);
+            position: absolute;
+            left: 50%;
+            bottom: clamp(12px, 10%, 28px);
+            transform: translateX(-50%);
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #f5f5f5;
+            text-transform: none;
+            text-align: center;
+            letter-spacing: 0.5px;
+            text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
+            pointer-events: none;
+        }
+
+        body.zoomed-out .mural-slide-2d.intro::after {
+            display: none;
+        }
+
+        body.zoomed-out .mural-slide-2d.intro {
+            border-radius: 22px;
+            border-color: rgba(255, 255, 255, 0.18);
+            animation: intro-glow 2.6s ease-in-out 0.8s infinite;
+        }
+
+        body.zoomed-out .mural-slide-2d.intro::before {
+            content: "INTRODUCCIÓN";
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.45rem;
+            border-radius: 18px;
+            background: linear-gradient(160deg, rgba(131, 56, 236, 0.82), rgba(68, 32, 143, 0.78));
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        body.zoomed-out .mural-slide-2d.intro .slide-visual {
+            display: none;
+        }
+
+        body.zoomed-out .mural-slide-2d.intro::after {
+            display: block;
+        }
+
+        body.zoomed-out .mural-slide-2d.intro .slide-content-wrapper {
+            display: none;
+        }
+
+        body.zoomed-out .mural-slide-2d.intro::after,
+        body.zoomed-out .mural-slide-2d.intro::before {
+            pointer-events: none;
+        }
+
+        body.zoomed-out .mural-slide-2d.intro::before {
+            padding: 0 1.5rem;
+        }
+
+        body.zoomed-out .mural-slide-2d.intro::after {
+            content: "Itinerario del Cansancio a la Compasión";
+            position: absolute;
+            bottom: clamp(12px, 17%, 28px);
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.82rem;
+            font-weight: 600;
+            letter-spacing: 0.12rem;
+            color: rgba(255, 255, 255, 0.85);
+            text-transform: uppercase;
+        }
+
+        body.zoomed-out .content-box,
+        body.zoomed-out .title-container {
+            opacity: 0;
+            visibility: hidden;
+            transform: translateX(-40px);
+            transition: opacity 0.25s ease-out,
+                transform 0.25s cubic-bezier(0.25, 1, 0.5, 1),
+                visibility 0s linear 0.25s;
+        }
+
+        /* --- Conectores Estructurales (vista general) --- */
+        body.zoomed-out .mural-canvas-2d::before,
+        body.zoomed-out .mural-canvas-2d::after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.05));
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        body.zoomed-out .mural-canvas-2d::before {
+            top: calc(50% - 2 * (var(--slide-height) + var(--slide-gap)) - (var(--slide-height) / 2));
+            width: 3px;
+            height: calc(4 * (var(--slide-height) + var(--slide-gap)) + var(--slide-height));
+            border-radius: 12px;
+        }
+
+        body.zoomed-out .mural-canvas-2d::after {
+            top: calc(50% - (var(--slide-height) + var(--slide-gap)) - 1.5px);
+            width: calc(4 * (var(--slide-width) + var(--slide-gap)) + var(--slide-width));
+            height: 3px;
+            border-radius: 12px;
+            background: linear-gradient(90deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.05));
+        }
+
+        .mural-slide-2d.active .content-box,
+        .mural-slide-2d.active .title-container {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(0);
+            transition: opacity 0.8s ease-out var(--content-delay),
+                transform 0.8s cubic-bezier(0.25, 1, 0.5, 1) var(--content-delay),
+                visibility 0s linear var(--content-delay);
+        }
+
+        /* --- Elementos de Texto Internos --- */
+        .section-eyebrow {
+            font-size: 1.05rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.6px;
+            margin-bottom: 0.75rem;
+        }
+
+        .intro .section-eyebrow {
+            color: var(--color-intro);
+        }
+
+        .ver .section-eyebrow {
+            color: var(--color-ver);
+        }
+
+        .juzgar .section-eyebrow {
+            color: var(--color-juzgar);
+        }
+
+        .actuar .section-eyebrow {
+            color: var(--color-actuar);
+        }
+
+        .cierre .section-eyebrow {
+            color: var(--color-cierre);
+        }
+
+        .content-box h2,
+        .title-container h2 {
+            font-size: clamp(2.1rem, calc(1.55rem + 1.6vw), 3.4rem);
+            font-weight: 900;
+            margin-bottom: 1.85rem;
+            line-height: 1.2;
+        }
+
+        .content-box p,
+        .title-container p {
+            font-size: clamp(1.2rem, calc(1.05rem + 0.5vw), 1.6rem);
+            font-weight: 300;
+            line-height: 1.85;
+            color: #dcdcdc;
+            margin-bottom: 1.7rem;
+        }
+
+        .title-container p {
+            font-weight: 400;
+            color: #f0f0f0;
+        }
+
+        /* --- Lista Intro VJA --- */
+        .vja-list {
+            list-style: none;
+            padding: 0;
+            margin-top: 2rem;
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+
+        .vja-list li {
+            font-size: 1.5rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            pointer-events: auto;
+            cursor: default;
+            transition: background-color 0.3s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .vja-list li:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .vja-list li .help-icon {
+            cursor: pointer;
+            width: 24px;
+            height: 24px;
+            fill: #888;
+            transition: fill 0.3s ease;
+        }
+
+        .vja-list li .help-icon:hover {
+            fill: #fff;
+        }
+
+        .vja-list .ver {
+            color: var(--color-ver);
+        }
+
+        .vja-list .juzgar {
+            color: var(--color-juzgar);
+        }
+
+        .vja-list .actuar {
+            color: var(--color-actuar);
+        }
+        /* --- Tooltips --- */
+        .tooltip {
+            position: relative;
+            color: var(--color-ver);
+            font-weight: 600;
+            border-bottom: 2px dotted rgba(137, 207, 240, 0.5);
+            cursor: help;
+        }
+
+        .tooltip .tooltip-text {
+            visibility: hidden;
+            width: 300px;
+            background-color: #f0f0f0;
+            color: #111;
+            text-align: left;
+            border-radius: 8px;
+            padding: 1rem;
+            position: absolute;
+            z-index: 10;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -150px;
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            transform: translateY(10px);
+            font-size: 0.9rem;
+            font-weight: 400;
+            line-height: 1.5;
+            border: 1px solid #ccc;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .tooltip .tooltip-text::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #f0f0f0 transparent transparent transparent;
+        }
+
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* --- Modal Info --- */
+        .info-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.4s ease, visibility 0.4s ease;
+        }
+
+        .info-modal.is-visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: #fff;
+            color: #222;
+            border-radius: 12px;
+            padding: 2rem 2.5rem;
+            max-width: 500px;
+            width: 90%;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            transform: scale(0.9);
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .info-modal.is-visible .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-content h2 {
+            font-size: 1.8rem;
+            font-weight: 900;
+            margin-bottom: 1rem;
+        }
+
+        .modal-content p {
+            font-size: 1rem;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 30px;
+            height: 30px;
+            background: #eee;
+            color: #555;
+            border: none;
+            border-radius: 50%;
+            font-size: 1.2rem;
+            font-weight: 700;
+            line-height: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .modal-close:hover {
+            background: #ddd;
+            color: #111;
+        }
+
+        @media (min-width: 1200px) {
+
+            .content-box,
+            .title-container {
+                max-width: min(1020px, 72ch);
+            }
+
+            .content-box {
+                padding: 3.3rem;
+            }
+
+            .title-container {
+                padding: 0 3.5rem;
+            }
+
+            .content-box h2,
+            .title-container h2 {
+                font-size: 3.6rem;
+            }
+
+            .content-box p,
+            .title-container p {
+                font-size: 1.65rem;
+                line-height: 1.95;
+            }
+
+            .section-eyebrow {
+                font-size: 1.2rem;
+                letter-spacing: 2px;
+            }
+
+            .vja-list li {
+                font-size: 1.7rem;
+            }
+
+            .vja-list li .help-icon {
+                width: 28px;
+                height: 28px;
+            }
+
+            .scroll-hint {
+                font-size: 1.12rem;
+                padding: 1.1rem 2.4rem;
+            }
+        }
+
+        /* --- Responsividad --- */
+        @media (max-width: 992px) {
+            :root {
+                --zoom-out-scale: 0.25;
+            }
+
+            .slide-content-wrapper {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto;
+                height: auto;
+                min-height: 100vh;
+            }
+
+            .slide-content {
+                padding: 1.6rem;
+                border-right: none;
+            }
+
+            .slide-visual {
+                height: 280px;
+                order: -1;
+            }
+
+            .content-box {
+                padding: 1.35rem 1.25rem;
+            }
+
+            .title-container {
+                padding: 0 1.4rem;
+            }
+
+            .content-box h2,
+            .title-container h2 {
+                font-size: 1.75rem;
+            }
+
+            .content-box p,
+            .title-container p {
+                font-size: 1rem;
+                line-height: 1.65;
+            }
+
+            .mural-header h1 {
+                font-size: 1.1rem;
+            }
+
+            .tooltip .tooltip-text {
+                width: 250px;
+                left: 50%;
+                margin-left: -125px;
+                bottom: 130%;
+            }
+
+            .vja-list {
+                flex-direction: column;
+                align-items: center;
+                gap: 1rem;
+            }
+
+            .vja-list li {
+                font-size: 1.25rem;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .scroll-hint {
+                padding: 0.85rem 1.45rem;
+                font-size: 0.92rem;
+                gap: 0.75rem;
+                bottom: 20px;
+                right: 20px;
+            }
+
+            .scroll-hint svg {
+                width: 18px;
+                height: 18px;
+            }
+
+            .content-box h2,
+            .title-container h2 {
+                font-size: 1.6rem;
+            }
+
+            .content-box p,
+            .title-container p {
+                font-size: 0.98rem;
+                line-height: 1.6;
+            }
+
+            .section-eyebrow {
+                font-size: 0.95rem;
+                letter-spacing: 1.2px;
+            }
+        }
+    </style>
+</head>
+
+<body class="zoomed-out">
+
+    <header class="mural-header">
+        <h1>Resonancias de la Cátedra</h1>
+    </header>
+
+    <button class="zoom-out-btn" id="zoom-out-btn" title="Volver al plano general">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M9 15 4 10m0 0 5-5M4 10h11.5a4.5 4.5 0 1 1 0 9H12" fill="none" stroke="currentColor"
+                stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+    </button>
+
+    <div class="scroll-hint" id="scroll-hint" role="status" aria-live="polite">
+        <span class="hint-text">Rueda, flechas o desliza ↑/↓ para avanzar</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 4.5v12.7l-3.6-3.6-1.4 1.4 6 6 6-6-1.4-1.4-3.6 3.6V4.5z" />
+        </svg>
+    </div>
+
+    <div class="scroll-hint authors" aria-label="Autores">
+        <span class="hint-text">Álvarez, Furini, López. DSI 2025. UCSF</span>
+    </div>
+
+    <div class="info-modal" id="info-modal">
+        <div class="modal-content">
+            <button class="modal-close" id="modal-close">&times;</button>
+            <h2 id="modal-title">Título del Modal</h2>
+            <p id="modal-text">Contenido del modal...</p>
+        </div>
+    </div>
+
+    <div class="mural-canvas-2d" id="mural-canvas">
+
+        <!-- DIAPOSITIVA 1: INTRO (CENTRO) -->
+        <div class="mural-slide-2d intro" id="slide-intro"
+            style="--layout-x: 0; --layout-y: calc(-2 * (var(--slide-height) + var(--slide-gap)));"
+            data-layout-factor-x="0" data-layout-factor-y="-2">
+            <div class="slide-content-wrapper">
+                <div class="slide-content">
+                    <div class="content-box title-container">
+
+                        <h2>Introduccion</h2>
+                        <p>El siguiente mural reúne resonancias de la cursada y propone analizar el individualismo, la
+                            hiperactividad y la respuesta cristiana mediante el método de la Doctrina Social de la
+                            Iglesia (DSI).</p>
+                        <p><strong>Siguiendo el método Ver-Juzgar-Actuar:</strong><br>
+
+                        <ul class="vja-list">
+                            <li class="ver" data-target="slide-ver-1">VER<svg class="help-icon"
+                                    data-title="VER: El Diagnóstico"
+                                    data-text="Es el acto de contemplar la realidad que nos interpela"
+                                    viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                    <path
+                                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-5h2v2h-2v-2zm0-8h2v6h-2V7z">
+                                    </path>
+                                </svg></li>
+                            <li class="juzgar" data-target="slide-juzgar-1">JUZGAR<svg class="help-icon"
+                                    data-title="JUZGAR: La Mirada de Jesús"
+                                    data-text="Es el acto de evaluar críticamente esa realidad a la luz del Evangelio y la DSI"
+                                    viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                    <path
+                                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-5h2v2h-2v-2zm0-8h2v6h-2V7z">
+                                    </path>
+                                </svg></li>
+                            <li class="actuar" data-target="slide-actuar-1">ACTUAR<svg class="help-icon"
+                                    data-title="ACTUAR: La Misión"
+                                    data-text="Es el compromiso con una acción transformadora" viewBox="0 0 24 24"
+                                    fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                    <path
+                                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-5h2v2h-2v-2zm0-8h2v6h-2V7z">
+                                    </path>
+                                </svg></li>
+                        </ul>
+                        <!--
+                        <p text-align="left">Nos guiaremos por:
+                            <div><span class="tooltip">El mito del individuo<span class="tooltip-text">Miguel Benasayag</span></span></div>
+                            <div><span class="tooltip">La sociedad del cansancio<span class="tooltip-text">Byung-Chul Han</span></span></div>
+                            <div><span class="tooltip">Fijo los ojos en Jesús<span class="tooltip-text">Velazco</span></span></div>
+                            <div><span class="tooltip">Fratelli Tutti<span class="tooltip-text">Papa Francisco</span></span></div>
+                            <div><span class="tooltip">Querida Amazonia<span class="tooltip-text">Papa Francisco</span></span></div>
+                        </p>
+                    -->
+                    </div>
+                </div>
+                <div class="slide-visual" id="visual-intro"></div>
+            </div>
+        </div>
+
+        <!-- DIAPOSITIVAS ACTUAR (LADO IZQUIERDO) -->
+        <div class="mural-slide-2d actuar" id="slide-actuar-1"
+            style="--layout-x: calc(-2 * (var(--slide-width) + var(--slide-gap))); --layout-y: calc(-1 * (var(--slide-height) + var(--slide-gap)));"
+            data-layout-factor-x="-2" data-layout-factor-y="-1">
+            <div class="slide-content-wrapper">
+
+                <div class="slide-content">
+                    <div class="content-box"><span class="section-eyebrow">III. ACTUAR: Misión Integral</span>
+                        <h2>Fraternidad Integral</h2>
+                        <p>Finalmente, el "Actuar" exige traducir esta convicción en acciones transformadoras. La
+                            Encíclica <span class="tooltip">Fratelli Tutti<span class="tooltip-text">Encíclica del Papa
+                                    Francisco (2020) sobre la
+                                    fraternidad y la amistad social como caminos para construir un mundo mejor, más
+                                    justo y
+                                    pacífico.</span></span> nos enseña que la <span class="tooltip">fraternidad<span
+                                    class="tooltip-text">Reconocimiento de todos los seres humanos como hermanos y
+                                    hermanas, hijos del
+                                    mismo Padre, lo que implica responsabilidad mutua y cuidado.</span></span> y la
+                            <span class="tooltip">amistad social<span class="tooltip-text">Una forma de amor que va más
+                                    allá de los
+                                    vínculos cercanos, buscando el bien común y construyendo puentes entre diferentes
+                                    grupos y
+                                    culturas.</span></span> son la piedra angular de esta respuesta, un nuevo sueño que
+                            rechaza la <span class="tooltip">globalización de la indiferencia<span
+                                    class="tooltip-text">La tendencia a ignorar el
+                                    sufrimiento lejano o diferente, volviéndose insensible ante las tragedias globales
+                                    debido a la
+                                    sobreinformación o el individualismo.</span></span>. Esta acción debe ser integral,
+                            pues la crisis
+                            social y la crisis ambiental son una única y compleja <span class="tooltip">crisis
+                                socio-ambiental<span class="tooltip-text">Concepto clave (Laudato Si') que afirma que no
+                                    hay dos crisis separadas (una
+                                    social y otra ambiental), sino una sola crisis compleja que debe ser abordada de
+                                    manera
+                                    integral.</span></span>. La respuesta se articula en una <span
+                                class="tooltip">Ecología Humanista
+                                Cristiana<span class="tooltip-text">Una visión ecológica que pone a la persona humana en
+                                    el centro, no
+                                    como dominador, sino como cuidador responsable de la creación, integrando la fe y la
+                                    razón.</span></span>.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="slide-visual" id="visual-6"></div>
+            </div>
+        </div>
+        <div class="mural-slide-2d actuar" id="slide-actuar-2"
+            style="--layout-x: calc(-1 * (var(--slide-width) + var(--slide-gap))); --layout-y: calc(-1 * (var(--slide-height) + var(--slide-gap)));"
+            data-layout-factor-x="-1" data-layout-factor-y="-1">
+            <div class="slide-content-wrapper">
+                <div class="slide-content">
+                    <div class="content-box"><span class="section-eyebrow">III. ACTUAR: Misión Integral</span>
+                        <h2>Acciones desde la Amazonia</h2>
+                        <p>La Exhortación <span class="tooltip">Querida Amazonia<span class="tooltip-text">Exhortación
+                                    Apostólica del
+                                    Papa Francisco (2020) que recoge las reflexiones del Sínodo sobre la Amazonia,
+                                    proponiendo caminos
+                                    pastorales, culturales, sociales y ecológicos.</span></span> nos ofrece algunas
+                            acciones relatando
+                            como La Amazonia es un misterio sagrado que nos inspira a indignarnos ante la explotación
+                            irracional,
+                            llamándola por su nombre: <span class="tooltip">injusticia y crimen<span
+                                    class="tooltip-text">Términos
+                                    fuertes usados por el Papa Francisco en Querida Amazonia para denunciar la
+                                    destrucción ambiental y
+                                    social causada por intereses económicos extractivistas.</span></span>. Este "Actuar"
+                            se puede
+                            interpretar como 3 acciones: 
+                            <br>Primero, una <span class="tooltip">Conversión
+                                Ecológica<span class="tooltip-text">Un cambio basado en la sobriedad y el cuidado de la
+                                    tierra, reconociendo que no somos dueños
+                                    absolutos, sino administradores fieles</span></span>.
+                            <br>Segundo, una <span class="tooltip">Conversión Solidaria<span
+                                    class="tooltip-text">Inspirados en el Buen Samaritano, estamos llamados a "volvernos
+                                    prójimos", haciendo propia la
+                                    fragilidad de los
+                                    heridos al costado del camino. </span></span>
+                            <br>Y una <span class="tooltip">Conversión Misionera<span class="tooltip-text">Buscando ser
+                                    una "Iglesia en
+                                    salida" que denuncie las estructuras injustas y promueva el
+                                    desarrollo humano integral</span></span>
+                        </p>
+                    </div>
+                </div>
+                <div class="slide-visual" id="visual-7"></div>
+            </div>
+        </div>
+
+        <!-- DIAPOSITIVAS JUZGAR (DERECHA) -->
+        <div class="mural-slide-2d juzgar" id="slide-juzgar-1" style="--layout-x: 0; --layout-y: 0;"
+            data-layout-factor-x="0" data-layout-factor-y="0">
+            <div class="slide-content-wrapper">
+                <div class="slide-content">
+                    <div class="content-box"><span class="section-eyebrow">II. JUZGAR: La Mirada de Jesús</span>
+                        <h2>Superar la Fe Tibia</h2>
+                        <p>El "Juzgar" confronta esta realidad de cansancio, individualismo y explotación con la luz del
+                            Evangelio. El
+                            primer acto de este discernimiento es superar nuestra <span class="tooltip">fe tibia<span
+                                    class="tooltip-text">Una fe superficial, cómoda y sin compromiso real, que no
+                                    transforma la vida ni
+                                    impulsa a la acción por la justicia.</span></span>. Debemos confrontar nuestra
+                            situación con la
+                            práctica del amor, que se revela como el criterio por excelencia de una actitud
+                            auténticamente cristiana.
+                            Esto implica romper con la religión de la "<span class="tooltip">mera creencia<span
+                                    class="tooltip-text">Una
+                                    fe reducida a aceptar dogmas intelectualmente, sin que estos se traduzcan en un
+                                    cambio de vida y en
+                                    obras de amor.</span></span>" para vivir la fe como una <span
+                                class="tooltip">adhesión plena<span class="tooltip-text">Implica una fe que no es solo
+                                    intelectual, sino que compromete toda la
+                                    existencia (mente, corazón y acción) en seguimiento de la persona de
+                                    Jesús.</span></span> a la
+                            persona de Jesús.</p>
+                    </div>
+                </div>
+
+                <div class="slide-visual" id="visual-3"></div>
+            </div>
+        </div>
+        <div class="mural-slide-2d juzgar" id="slide-juzgar-2"
+            style="--layout-x: 0; --layout-y: calc(1 * (var(--slide-height) + var(--slide-gap)));"
+            data-layout-factor-x="0" data-layout-factor-y="1">
+            <div class="slide-content-wrapper">
+                <div class="slide-content">
+                    <div class="content-box"><span class="section-eyebrow">II. JUZGAR: La Mirada de Jesús</span>
+                        <h2>El Descentramiento</h2>
+                        <p>Este contacto vital, nos exige el "<span class="tooltip">descentramiento<span
+                                    class="tooltip-text">El proceso
+                                    de salir del propio egoísmo y de las preocupaciones autocentradas para abrirse al
+                                    otro, a la
+                                    realidad y, en última instancia, a Dios.</span></span>" y la desinstalación de
+                            nuestra condición
+                            egocéntrica, como condición para el encuentro con el <span class="tooltip">Misterio<span
+                                    class="tooltip-text">Referencia a la realidad trascendente de Dios, que supera la
+                                    comprensión humana
+                                    pero se revela en Jesucristo y en la experiencia de fe.</span></span>. Descubrimos
+                            que el "<span class="tooltip">Misterio del Hombre<span class="tooltip-text">La profundidad
+                                    insondable de la persona
+                                    humana, su dignidad, su vocación y su relación con Dios, que solo se ilumina
+                                    plenamente en
+                                    Cristo.</span></span> solo se esclarece en el <span class="tooltip">misterio del
+                                Verbo
+                                encarnado<span class="tooltip-text">El misterio central de la fe cristiana: Dios Hijo se
+                                    hace hombre en
+                                    Jesús de Nazaret, revelando así quién es Dios y quién es el ser
+                                    humano.</span></span>". Jesús,
+                            anuncia el <span class="tooltip">Reino de Dios<span class="tooltip-text">El proyecto
+                                    humanizador de Dios
+                                    para transformar el mundo según sus valores: justicia, paz, fraternidad y compasión,
+                                    inaugurado por
+                                    Jesús.</span></span>: un proyecto humanizador para transformar el mundo, centrado en
+                            la <span class="tooltip">compasión<span class="tooltip-text">Sentimiento profundo de
+                                    solidaridad con el
+                                    sufrimiento ajeno, que impulsa a actuar para aliviarlo. Es una característica
+                                    central del actuar de
+                                    Jesús.</span></span> como principio de acción. Él no separa a Dios de su proyecto de
+                            justicia.</p>
+                    </div>
+                </div>
+
+                <div class="slide-visual" id="visual-4"></div>
+            </div>
+        </div>
+        <div class="mural-slide-2d juzgar" id="slide-juzgar-3"
+            style="--layout-x: 0; --layout-y: calc(2 * (var(--slide-height) + var(--slide-gap)));"
+            data-layout-factor-x="0" data-layout-factor-y="2">
+            <div class="slide-content-wrapper">
+                <div class="slide-content">
+                    <div class="content-box"><span class="section-eyebrow">II. JUZGAR: La Mirada de Jesús</span>
+                        <h2>La Prueba de Fuego</h2>
+                        <p>La prueba de fuego de nuestra fe es la práctica del amor por el prójimo. Es aquí donde la
+                            <span class="tooltip">Opción Preferencial por los Pobres<span class="tooltip-text">Principio
+                                    teológico y
+                                    pastoral que exige mirar la realidad desde la perspectiva de los últimos y actuar
+                                    prioritariamente
+                                    en su favor como criterio de autenticidad cristiana.</span></span> se revela como la
+                            forma concreta
+                            de vivir la solidaridad, poniendo en juego la Caridad que realiza la Justicia. Al mirar a
+                            Jesús en la Cruz,
+                            la fe nos revela a un Dios identificado con las víctimas, un "<span
+                                class="tooltip">escándalo<span class="tooltip-text">Referencia a la dificultad de
+                                    aceptar, desde la lógica del poder y el éxito
+                                    mundano, a un Dios que se revela en la debilidad, el sufrimiento y la
+                                    cruz.</span></span>" para la
+                            lógica del mundo que nos interpela por el sufrimiento. Esta fe se basa en la <span
+                                class="tooltip">confianza
+                                incondicional<span class="tooltip-text">La actitud fundamental de abandono y entrega
+                                    total a Dios Padre,
+                                    incluso en medio de la dificultad y la aparente ausencia, como la de Jesús en la
+                                    cruz.</span></span>
+                            en el Padre, incluso bajo la forma de la debilidad. Este juicio nos permite denunciar el mal
+                            y salvaguardar
+                            la dignidad de cada persona.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="slide-visual" id="visual-5"></div>
+            </div>
+        </div>
+
+        <!-- DIAPOSITIVAS VER (LADO DERECHO) -->
+        <div class="mural-slide-2d ver" id="slide-ver-1"
+            style="--layout-x: calc(1 * (var(--slide-width) + var(--slide-gap))); --layout-y: calc(-1 * (var(--slide-height) + var(--slide-gap)));"
+            data-layout-factor-x="1" data-layout-factor-y="-1">
+            <div class="slide-content-wrapper">
+                <div class="slide-content">
+                    <div class="content-box"><span class="section-eyebrow">I. VER: El Diagnóstico</span>
+                        <h2>El Mito del Individuo</h2>
+                        <p>En la actualidad, Miguel Benasayag nos cuenta que el origen de nuestra crisis se encuentra en
+                            "<span class="tooltip">el mito del individuo<span class="tooltip-text">La idea moderna de un
+                                    sujeto
+                                    completamente autónomo y autosuficiente, desconectado de la comunidad y su
+                                    entorno.</span></span>".
+                            Esta ficción de la modernidad, surgida de un "<span class="tooltip">antropocentrismo
+                                desviado<span class="tooltip-text">Visión que pone al ser humano como dominador absoluto
+                                    de la creación, en lugar
+                                    de administrador fiel, perdiendo el respeto por la moral y la
+                                    tierra.</span></span>", es la fuerza
+                            que ha provocado la "<span class="tooltip">fragmentación de todo tejido social<span
+                                    class="tooltip-text">La
+                                    ruptura de los lazos comunitarios y solidarios, llevando al aislamiento y la pérdida
+                                    de sentido
+                                    colectivo.</span></span>".</p>
+                    </div>
+                </div>
+                <div class="slide-visual" id="visual-1"></div>
+            </div>
+        </div>
+        <div class="mural-slide-2d ver" id="slide-ver-2"
+            style="--layout-x: calc(2 * (var(--slide-width) + var(--slide-gap))); --layout-y: calc(-1 * (var(--slide-height) + var(--slide-gap)));"
+            data-layout-factor-x="2" data-layout-factor-y="-1">
+            <div class="slide-content-wrapper">
+                <div class="slide-content">
+                    <div class="content-box"><span class="section-eyebrow">I. VER: El Diagnóstico</span>
+                        <h2>La Sociedad del Cansancio</h2>
+                        <p>Byung-Chul Han, en <span class="tooltip">La sociedad del cansancio<span
+                                    class="tooltip-text">Ensayo
+                                    filosófico que analiza cómo la sociedad actual, basada en el rendimiento y la
+                                    positividad excesiva,
+                                    genera agotamiento y enfermedades neuronales.</span></span>, describe las
+                            consecuencias patológicas
+                            de esta lógica. Nos presenta al "<span class="tooltip">Prometeo Cansado<span
+                                    class="tooltip-text">Metáfora
+                                    del individuo moderno que, en su afán de rendimiento ilimitado, se encadena a sí
+                                    mismo y se consume
+                                    en la autoexplotación.</span></span>", un <span class="tooltip">sujeto de
+                                rendimiento<span class="tooltip-text">Individuo cuya identidad y valor se definen
+                                    principalmente por su capacidad de
+                                    producir y ser eficiente, a menudo a costa de su bienestar.</span></span> que en
+                            lugar de ser libre
+                            se autoexplota. Esta "<span class="tooltip">violencia neuronal<span
+                                    class="tooltip-text">Según Byung-Chul
+                                    Han, es la violencia interna generada por el exceso de positividad y autoexigencia,
+                                    que lleva a
+                                    enfermedades como la depresión o el burnout.</span></span>" se manifiesta en las
+                            enfermedades del
+                            "<span class="tooltip">exceso de positividad<span class="tooltip-text">La presión social por
+                                    ser siempre
+                                    feliz, productivo y exitoso, eliminando la negatividad necesaria para la reflexión y
+                                    el
+                                    descanso.</span></span>" como la depresión o el <span class="tooltip">síndrome de
+                                desgaste
+                                ocupacional<span class="tooltip-text">Estado de agotamiento físico, emocional y mental
+                                    causado por el
+                                    estrés crónico en el trabajo.</span></span>.</p>
+                    </div>
+                </div>
+                <div class="slide-visual" id="visual-2"></div>
+            </div>
+        </div>
+        <!-- DIAPOSITIVA CIERRE (CENTRO) -->
+        <div class="mural-slide-2d cierre" id="slide-cierre"
+            style="--layout-x: 0; --layout-y: calc(-1 * (var(--slide-height) + var(--slide-gap)));"
+            data-layout-factor-x="0" data-layout-factor-y="-1">
+            <div class="slide-content-wrapper">
+                <div class="slide-content">
+                    <div class="content-box"><span class="section-eyebrow">CIERRE: Horizonte</span>
+                        <h2>La Civilización del Amor</h2>
+                        <p> <span class="tooltip">Nuestro itinerario <span class="tooltip-text">Ver, Juzgar, Actuar</span></span> nos llama a una <span class="tooltip">conversión
+                                personal y
+                                comunitaria<span class="tooltip-text">Un cambio profundo que afecta tanto al individuo
+                                    en su corazón y
+                                    acciones, como a las estructuras y relaciones de la sociedad en su
+                                    conjunto.</span></span>. Es un
+                            rechazo al cansancio a solas del individualismo para abrazar la <span
+                                class="tooltip">compasión activa<span class="tooltip-text">Una compasión que no se queda
+                                    en el sentimiento, sino que se traduce en
+                                    acciones concretas de ayuda, solidaridad y lucha por la justicia.</span></span> del
+                            Evangelio. La
+                            DSI nos llama a ser protagonistas actuando con justicia y solidaridad para construir la
+                            "<span class="tooltip">civilización del amor<span class="tooltip-text">Expresión
+                                    popularizada por Pablo VI y
+                                    Juan Pablo II para describir una sociedad basada en el amor, la justicia, la
+                                    solidaridad y el
+                                    respeto a la dignidad humana, como meta de la acción social
+                                    cristiana.</span></span>". Guiados por
+                            principios de reflexión, criterios de juicio y acciones que emanan del evangelio, nos revela
+                            cómo iluminar
+                            las realidades sociales, políticas y económicas con la luz de la fe, poniendo siempre a la
+                            <span class="tooltip">dignidad humana<span class="tooltip-text">Valor intrínseco e
+                                    inalienable de toda
+                                    persona, por el hecho de ser imagen de Dios, fundamento de todos los derechos
+                                    humanos y de la
+                                    DSI.</span></span> en el centro.
+                        </p>
+                    </div>
+                </div>
+                <div class="slide-visual" id="visual-9"></div>
+            </div>
+        </div>
+    </div>
+
+    </div> <!-- Fin .mural-canvas-2d -->
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('mural-canvas');
+            const slides = document.querySelectorAll('.mural-slide-2d');
+            const header = document.querySelector('.mural-header');
+            const headerTitle = header.querySelector('h1');
+            const defaultHeaderTitle = headerTitle.textContent;
+
+            const modal = document.getElementById('info-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalText = document.getElementById('modal-text');
+            const modalClose = document.getElementById('modal-close');
+            const helpIcons = document.querySelectorAll('.help-icon');
+            const navLinks = document.querySelectorAll('.vja-list li[data-target]');
+            const zoomOutBtn = document.getElementById('zoom-out-btn');
+            const scrollHintElement = document.getElementById('scroll-hint');
+            const scrollHintText = scrollHintElement ? scrollHintElement.querySelector('.hint-text') : null;
+            const authorHintElement = document.querySelector('.scroll-hint.authors');
+
+            let currentSlide = null;
+            const scrollSequence = [
+                'slide-intro',
+                'slide-ver-1',
+                'slide-ver-2',
+                'slide-juzgar-1',
+                'slide-juzgar-2',
+                'slide-juzgar-3',
+                'slide-actuar-1',
+                'slide-actuar-2',
+                'slide-cierre'
+            ];
+            let currentSequenceIndex = null;
+            let scrollLocked = false;
+            const SCROLL_COOLDOWN = 900; // ms to match zoom transition
+            let touchStartX = null;
+            let touchStartY = null;
+            let touchStartTime = 0;
+            const SWIPE_THRESHOLD = 50;
+            const SWIPE_TIME = 600;
+
+            const pointerQuery = window.matchMedia('(pointer: coarse)');
+            const updateScrollHintText = (evt) => {
+                if (!scrollHintText) return;
+                if (evt.matches) {
+                    scrollHintText.textContent = 'Desliza arriba o abajo o usa las flechas para avanzar';
+                } else {
+                    scrollHintText.textContent = 'Rueda, flechas o desliza ↑/↓ para avanzar';
+                }
+            };
+            updateScrollHintText(pointerQuery);
+            if (pointerQuery.addEventListener) {
+                pointerQuery.addEventListener('change', updateScrollHintText);
+            } else if (pointerQuery.addListener) {
+                pointerQuery.addListener(updateScrollHintText);
+            }
+
+            function attachHintHover(element) {
+                if (!element) return;
+                element.addEventListener('mouseenter', () => {
+                    element.classList.add('is-hidden-by-hover');
+                });
+                element.addEventListener('mouseleave', () => {
+                    element.classList.remove('is-hidden-by-hover');
+                });
+            }
+
+            attachHintHover(scrollHintElement);
+            attachHintHover(authorHintElement);
+
+            slides.forEach(slide => {
+                const heading = slide.querySelector('h2');
+                const fallback = slide.classList.contains('intro') ? 'Introducción' : '';
+                const label = heading ? heading.textContent.trim() : fallback;
+                if (label) {
+                    slide.setAttribute('data-preview-label', label);
+                }
+            });
+
+            function measureSlidesBounds() {
+                let minLeft = Infinity;
+                let maxRight = -Infinity;
+                let minTop = Infinity;
+                let maxBottom = -Infinity;
+                slides.forEach(slide => {
+                    const rect = slide.getBoundingClientRect();
+                    if (rect.width === 0 || rect.height === 0) return;
+                    minLeft = Math.min(minLeft, rect.left);
+                    maxRight = Math.max(maxRight, rect.right);
+                    minTop = Math.min(minTop, rect.top);
+                    maxBottom = Math.max(maxBottom, rect.bottom);
+                });
+                if (!isFinite(minLeft) || !isFinite(maxRight) || !isFinite(minTop) || !isFinite(maxBottom)) {
+                    return null;
+                }
+                return {
+                    width: maxRight - minLeft,
+                    height: maxBottom - minTop
+                };
+            }
+
+            function computeFitScale(bounds) {
+                if (!bounds) return 0.55;
+                const marginFactor = 0.08;
+                const margin = Math.max(24, Math.min(window.innerWidth, window.innerHeight) * marginFactor);
+                const availableWidth = Math.max(220, window.innerWidth - margin * 2);
+                const availableHeight = Math.max(220, window.innerHeight - margin * 2);
+                const scaleX = availableWidth / bounds.width;
+                const scaleY = availableHeight / bounds.height;
+                const raw = Math.min(scaleX, scaleY) * 0.78;
+                if (!isFinite(raw) || raw <= 0) return 0.55;
+                return Math.max(0.18, Math.min(raw, 0.6));
+            }
+
+            function recalcZoomOutScale() {
+                if (!document.body.classList.contains('zoomed-out')) return;
+                const prevInlineScale = canvas.style.getPropertyValue('--scale');
+                const hadInlineScale = prevInlineScale !== '';
+                canvas.style.setProperty('--scale', '1');
+                canvas.style.setProperty('--x', '0px');
+                canvas.style.setProperty('--y', '0px');
+                requestAnimationFrame(() => {
+                    const bounds = measureSlidesBounds();
+                    const targetScale = computeFitScale(bounds);
+                    canvas.style.setProperty('--scale', `${targetScale}`);
+                    if (!hadInlineScale && targetScale === '') {
+                        canvas.style.removeProperty('--scale');
+                    }
+                });
+            }
+
+            function scheduleZoomOutScale() {
+                if (!document.body.classList.contains('zoomed-out')) return;
+                recalcZoomOutScale();
+            }
+
+            window.addEventListener('resize', () => {
+                scheduleZoomOutScale();
+            });
+
+            window.addEventListener('load', scheduleZoomOutScale);
+
+            // --- Función Principal de Navegación ---
+            function navigateTo(slideId) {
+                const targetSlide = document.getElementById(slideId);
+                if (!targetSlide || targetSlide === currentSlide) return;
+
+                document.body.classList.add('show-scroll-hint');
+
+                if (currentSlide) {
+                    currentSlide.classList.remove('active');
+                }
+
+                currentSlide = targetSlide;
+                currentSlide.classList.add('active'); // Apply active class immediately
+
+                if (!currentSlide.classList.contains('intro')) {
+                    currentSlide.classList.add('visited');
+                }
+
+                document.body.classList.remove('zoomed-out');
+
+                // --- FIX: Read factors and calculate pixel translation ---
+                const factorX = parseFloat(targetSlide.dataset.layoutFactorX || '0');
+                const factorY = parseFloat(targetSlide.dataset.layoutFactorY || '0');
+
+                const slideWidth = window.innerWidth;
+                const slideHeight = window.innerHeight;
+                const gapValue = getComputedStyle(document.documentElement).getPropertyValue('--slide-gap').trim();
+                const vmin = Math.min(window.innerWidth, window.innerHeight);
+                let gapPixels = 0;
+                if (gapValue.endsWith('vmin')) {
+                    gapPixels = (parseFloat(gapValue) / 100) * vmin;
+                } else {
+                    console.warn("Could not parse --slide-gap unit:", gapValue);
+                }
+
+                const targetX = factorX * (slideWidth + gapPixels);
+                const targetY = factorY * (slideHeight + gapPixels);
+                // --- End FIX ---
+
+                canvas.style.setProperty('--scale', '1');
+                // Use calculated pixel values
+                canvas.style.setProperty('--x', `${-targetX}px`);
+                canvas.style.setProperty('--y', `${-targetY}px`);
+
+                const newIndex = scrollSequence.indexOf(slideId);
+                currentSequenceIndex = newIndex !== -1 ? newIndex : currentSequenceIndex;
+
+                updateHeader(targetSlide);
+            }
+
+            // --- Función para Volver al Plano General ---
+            function zoomOut() {
+                document.body.classList.add('zoomed-out');
+                document.body.classList.add('show-scroll-hint');
+
+                if (currentSlide) {
+                    currentSlide.classList.remove('active');
+                    currentSlide = null;
+                }
+                currentSequenceIndex = null;
+                recalcZoomOutScale();
+
+                headerTitle.textContent = defaultHeaderTitle;
+                header.className = 'mural-header';
+            }
+
+            // --- Función para Actualizar Cabecero ---
+            function updateHeader(slide) {
+                const eyebrow = slide.querySelector('.section-eyebrow');
+                const title = slide.querySelector('h2');
+
+                if (slide.classList.contains('intro')) {
+                    headerTitle.textContent = defaultHeaderTitle;
+                } else if (eyebrow && title) {
+                    const sectionNameMatch = eyebrow.textContent.match(/^(?:I\.\s*|II\.\s*|III\.\s*)?([^:]+)/);
+                    const sectionName = sectionNameMatch ? sectionNameMatch[1].trim() : '';
+                    headerTitle.textContent = `${sectionName}: ${title.textContent}`;
+                }
+
+                header.className = 'mural-header'; // Reset
+                if (slide.classList.contains('intro')) header.classList.add('header-intro');
+                else if (slide.classList.contains('ver')) header.classList.add('header-ver');
+                else if (slide.classList.contains('juzgar')) header.classList.add('header-juzgar');
+                else if (slide.classList.contains('actuar')) header.classList.add('header-actuar');
+                else if (slide.classList.contains('cierre')) header.classList.add('header-cierre');
+            }
+
+            function scheduleScrollUnlock() {
+                setTimeout(() => { scrollLocked = false; }, SCROLL_COOLDOWN);
+            }
+
+            function goToSequenceIndex(nextIndex) {
+                if (nextIndex < 0 || nextIndex >= scrollSequence.length) {
+                    scrollLocked = true;
+                    zoomOut();
+                    scheduleScrollUnlock();
+                    return;
+                }
+
+                const targetId = scrollSequence[nextIndex];
+                if (!targetId) return;
+                scrollLocked = true;
+                navigateTo(targetId);
+                scheduleScrollUnlock();
+            }
+
+            function handleWheel(event) {
+                if (modal.classList.contains('is-visible')) return;
+                if (event.deltaY === 0) return;
+
+                if (scrollLocked) {
+                    event.preventDefault();
+                    return;
+                }
+
+                const direction = event.deltaY > 0 ? 1 : -1;
+                const isZoomedOut = document.body.classList.contains('zoomed-out');
+
+                if (isZoomedOut) {
+                    if (direction < 0) return;
+                    event.preventDefault();
+                    goToSequenceIndex(0);
+                    return;
+                }
+
+                if (!currentSlide) {
+                    currentSequenceIndex = null;
+                } else if (currentSequenceIndex === null) {
+                    const idx = scrollSequence.indexOf(currentSlide.id);
+                    currentSequenceIndex = idx !== -1 ? idx : null;
+                }
+
+                if (currentSequenceIndex === null) return;
+
+                event.preventDefault();
+                goToSequenceIndex(currentSequenceIndex + direction);
+            }
+
+            document.addEventListener('wheel', handleWheel, { passive: false });
+
+            function handleKeydown(event) {
+                if (modal.classList.contains('is-visible')) return;
+                if (scrollLocked) return;
+
+                const key = event.key;
+                const isZoomedOut = document.body.classList.contains('zoomed-out');
+                let direction = 0;
+
+                if (key === 'ArrowDown' || key === 'PageDown') {
+                    direction = 1;
+                } else if (key === 'ArrowUp' || key === 'PageUp') {
+                    direction = -1;
+                } else if (key === 'Home') {
+                    goToSequenceIndex(0);
+                    event.preventDefault();
+                    return;
+                } else if (key === 'End') {
+                    goToSequenceIndex(scrollSequence.length - 1);
+                    event.preventDefault();
+                    return;
+                }
+
+                if (direction === 0) return;
+                event.preventDefault();
+
+                if (isZoomedOut) {
+                    if (direction > 0) {
+                        goToSequenceIndex(0);
+                    }
+                    return;
+                }
+
+                if (!currentSlide) {
+                    currentSequenceIndex = null;
+                } else if (currentSequenceIndex === null) {
+                    const idx = scrollSequence.indexOf(currentSlide.id);
+                    currentSequenceIndex = idx !== -1 ? idx : null;
+                }
+
+                if (currentSequenceIndex === null) return;
+                goToSequenceIndex(currentSequenceIndex + direction);
+            }
+
+            document.addEventListener('keydown', handleKeydown);
+
+            function handleTouchStart(event) {
+                if (event.touches.length > 1) {
+                    touchStartX = null;
+                    touchStartY = null;
+                    return;
+                }
+                if (modal.classList.contains('is-visible')) return;
+                const touch = event.touches[0];
+                touchStartX = touch.clientX;
+                touchStartY = touch.clientY;
+                touchStartTime = Date.now();
+            }
+
+            function handleTouchEnd(event) {
+                if (modal.classList.contains('is-visible')) return;
+                if (touchStartX === null || touchStartY === null) return;
+                const touch = event.changedTouches[0];
+                const deltaX = touch.clientX - touchStartX;
+                const deltaY = touch.clientY - touchStartY;
+                const absX = Math.abs(deltaX);
+                const absY = Math.abs(deltaY);
+                const elapsed = Date.now() - touchStartTime;
+
+                touchStartX = null;
+                touchStartY = null;
+
+                if (elapsed > SWIPE_TIME || absY < SWIPE_THRESHOLD || absY < absX) return;
+                if (scrollLocked) return;
+
+                let direction = 0;
+                if (deltaY < -SWIPE_THRESHOLD) direction = 1; // swipe up -> avanzar
+                else if (deltaY > SWIPE_THRESHOLD) direction = -1; // swipe down -> retroceder
+
+                if (direction === 0) return;
+                event.preventDefault();
+
+                const isZoomedOut = document.body.classList.contains('zoomed-out');
+                if (isZoomedOut) {
+                    if (direction > 0) {
+                        goToSequenceIndex(0);
+                    }
+                    return;
+                }
+
+                if (!currentSlide) {
+                    currentSequenceIndex = null;
+                } else if (currentSequenceIndex === null) {
+                    const idx = scrollSequence.indexOf(currentSlide.id);
+                    currentSequenceIndex = idx !== -1 ? idx : null;
+                }
+
+                if (currentSequenceIndex === null) return;
+                goToSequenceIndex(currentSequenceIndex + direction);
+            }
+
+            document.addEventListener('touchstart', handleTouchStart, { passive: true });
+            document.addEventListener('touchend', handleTouchEnd, { passive: false });
+            document.addEventListener('touchcancel', () => {
+                touchStartX = null;
+                touchStartY = null;
+            });
+
+            // --- Listeners de Clic ---
+            slides.forEach(slide => {
+                slide.addEventListener('click', () => {
+                    if (document.body.classList.contains('zoomed-out') && !slide.classList.contains('active')) {
+                        navigateTo(slide.id);
+                    }
+                });
+            });
+            zoomOutBtn.addEventListener('click', () => {
+                zoomOut();
+            });
+            helpIcons.forEach(icon => {
+                icon.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const title = icon.getAttribute('data-title');
+                    const text = icon.getAttribute('data-text');
+                    modalTitle.textContent = title;
+                    modalText.textContent = text;
+                    modal.classList.add('is-visible');
+                });
+            });
+            function closeModal() { modal.classList.remove('is-visible'); }
+            modalClose.addEventListener('click', closeModal);
+            modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    if (e.target.closest('.help-icon')) return;
+                    const targetId = link.getAttribute('data-target');
+                    if (!targetId) return;
+                    if (currentSlide && currentSlide.id === targetId) return;
+                    navigateTo(targetId);
+                });
+            });
+
+            // Estado Inicial
+            zoomOut();
+
+        });
+    </script>
+
+</body>
+
+</html>
