@@ -47,6 +47,8 @@
             --color-actuar: #3a5a40;
             --color-cierre: #fb5607;
             --color-intro: #8338ec;
+            --color-hint-bg: rgba(54, 36, 104, 0.9);
+            --color-hint-border: rgba(188, 158, 255, 0.42);
 
             --slide-width: 100vw;
             --slide-height: 100vh;
@@ -157,8 +159,8 @@
             justify-content: center;
             gap: 1rem;
             padding: 1rem 2.1rem;
-            background: rgba(17, 17, 17, 0.9);
-            border: 1px solid rgba(255, 255, 255, 0.22);
+            background: var(--color-hint-bg);
+            border: 1px solid var(--color-hint-border);
             border-radius: 999px;
             box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
             font-size: 1.05rem;
@@ -211,7 +213,7 @@
             position: absolute;
             top: 50%;
             left: clamp(20px, 4vw, 56px);
-            transform: translateY(-50%);
+            transform: translateY(-50%) scale(1);
             display: inline-flex;
             align-items: center;
             gap: 0.55rem;
@@ -226,7 +228,9 @@
             text-transform: uppercase;
             cursor: pointer;
             transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, color 0.3s ease;
-            z-index: 5;
+            z-index: 115;
+            /* Glow/pulse para ayudar a la detección */
+            animation: audio-toggle-glow 3.8s ease-in-out infinite;
         }
 
         .audio-toggle:hover,
@@ -235,6 +239,7 @@
             border-color: rgba(255, 255, 255, 0.36);
             box-shadow: 0 16px 32px rgba(0, 0, 0, 0.45);
             outline: none;
+            animation-play-state: paused;
         }
 
         .audio-toggle.is-active {
@@ -294,6 +299,8 @@
             opacity: 1;
             transform: translateY(0);
             pointer-events: auto;
+            /* destacar cuando se muestra */
+            animation: scroll-hint-glow 4.2s ease-in-out infinite;
         }
 
         body.show-scroll-hint .scroll-hint.authors {
@@ -310,6 +317,40 @@
             opacity: 0;
             pointer-events: none;
             transform: translateY(16px);
+        }
+
+        /* Animaciones para llamar la atención */
+        @keyframes audio-toggle-glow {
+            0%, 100% {
+                transform: translateY(-50%) scale(1);
+                box-shadow: 0 0 0 rgba(188, 158, 255, 0.05);
+            }
+            45% {
+                transform: translateY(-50%) scale(1.06);
+                box-shadow: 0 8px 34px rgba(188, 158, 255, 0.45), 0 0 0 8px rgba(188, 158, 255, 0.12);
+            }
+        }
+
+        @keyframes scroll-hint-glow {
+            0%, 100% {
+                transform: translateY(0) scale(1);
+                box-shadow: 0 18px 40px rgba(0,0,0,0.45);
+                border-color: var(--color-hint-border);
+            }
+            50% {
+                transform: translateY(0) scale(1.02);
+                box-shadow: 0 26px 56px rgba(0,0,0,0.6), 0 0 0 10px rgba(122,94,201,0.18);
+                border-color: rgba(208,188,255,0.58);
+            }
+        }
+
+        /* Pausar animaciones si el usuario prefiere menos movimiento */
+        @media (prefers-reduced-motion: reduce) {
+            .audio-toggle,
+            .scroll-hint {
+                animation: none !important;
+                transition: none !important;
+            }
         }
 
         @keyframes hint-bounce {
@@ -678,12 +719,12 @@
         }
 
         body.zoomed-out .mural-slide-2d.intro::after {
-            content: "Itinerario del Cansancio a la Compasión";
+            content: "Resonancias de la Cátedra";
             position: absolute;
             bottom: clamp(12px, 17%, 28px);
             left: 50%;
             transform: translateX(-50%);
-            font-size: 0.82rem;
+            font-size: 0.82rem; 
             font-weight: 600;
             letter-spacing: 0.12rem;
             color: rgba(255, 255, 255, 0.85);
